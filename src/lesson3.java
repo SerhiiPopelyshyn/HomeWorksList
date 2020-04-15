@@ -1,7 +1,7 @@
 import com.sun.jndi.ldap.sasl.LdapSasl;
 
 public class lesson3 {
-desgudsghs
-    dkjhgshgdfh
-        fdhkdfjhdgfhjgf
+    public static void main (String args[]){
+
+    }
 }

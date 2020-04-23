@@ -10,7 +10,6 @@
 //persArray[4] = new Person(...);
 //
 //* С помощью цикла вывести информацию только о сотрудниках старше 40 лет;
-
 class Person {
     private String fio;
     private String post;
@@ -57,3 +56,4 @@ class Main {
         }
     }
 }
+//The end

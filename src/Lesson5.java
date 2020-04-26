@@ -6,7 +6,6 @@
 //Person[] persArray = new Person[5]; // Вначале объявляем массив объектов
 //persArray[0] = new Person("Ivanov Ivan", "Engineer", "ivivan@mailbox.com", "892312312", 30000, 30); // потом для каждой ячейки массива задаем объект
 //persArray[1] = new Person(...);
-//...
 //persArray[4] = new Person(...);
 //
 //* С помощью цикла вывести информацию только о сотрудниках старше 40 лет;
@@ -56,4 +55,3 @@ class Main {
         }
     }
 }
-//The end

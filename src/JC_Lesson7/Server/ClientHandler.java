@@ -1,5 +1,6 @@
 package JC_Lesson7.Server;
 
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -23,28 +24,53 @@ public class ClientHandler {
 
             new Thread(() -> {
                 try {
+                    //Если в течении 5 секунд не будет сообщений по сокету, то вызовится исключение
+                    socket.setSoTimeout(50);
+
                     //цикл аутентификации
                     while (true) {
                         String str = in.readUTF();
 
+                        if (str.startsWith("/reg ")) {
+                            String[] token = str.split(" ");
+
+                            if (token.length < 4) {
+                                continue;
+                            }
+
+                            boolean succeed = server
+                                    .getAuthService()
+                                    .registration(token[1], token[2], token[3]);
+                            if (succeed) {
+                                sendMsg("Регистрация прошла успешно");
+                            } else {
+                                sendMsg("Регистрация  не удалась. \n" +
+                                        "Возможно логин уже занят, или данные содержат пробел");
+                            }
+                        }
+
                         if (str.startsWith("/auth ")) {
                             String[] token = str.split(" ");
 
-                            System.out.println(str);
-                            if (token.length < 2) {
+                            if (token.length < 3) {
                                 continue;
                             }
 
                             String newNick = server.getAuthService()
                                     .getNicknameByLoginAndPassword(token[1], token[2]);
 
+                            login = token[1];
+
                             if (newNick != null) {
-                                sendMsg("/authok " + newNick);
-                                nick = newNick;
-                                login = token[1];
-                                server.subscribe(this);
-                                System.out.println("Клиент: " + nick + " подключился");
-                                break;
+                                if (!server.isLoginAuthorized(login)) {
+                                    sendMsg("/authok " + newNick);
+                                    nick = newNick;
+                                    server.subscribe(this);
+                                    System.out.println("Клиент: " + nick + " подключился"+ socket.getRemoteSocketAddress());
+                                    break;
+                                } else {
+                                    sendMsg("С этим логином уже прошли аутентификацию");
+                                }
                             } else {
                                 sendMsg("Неверный логин / пароль");
                             }
@@ -55,14 +81,27 @@ public class ClientHandler {
                     while (true) {
                         String str = in.readUTF();
 
-                        if (str.equals("/end")) {
-                            sendMsg("/end");
-                            break;
-                        }
+                        if (str.startsWith("/")) {
+                            if (str.equals("/end")) {
+                                sendMsg("/end");
+                                break;
+                            }
+                            if (str.startsWith("/w ")) {
+                                String[] token = str.split(" ", 3);
 
-                        server.broadcastMsg(nick + ": " + str);
+                                if (token.length < 3) {
+                                    continue;
+                                }
+
+                                server.privateMsg(this, token[1], token[2]);
+                            }
+                        } else {
+                            server.broadcastMsg(nick, str);
+                        }
                     }
-                } catch (IOException e) {
+                }
+                ///////
+                catch (IOException e) {
                     e.printStackTrace();
                 } finally {
                     server.unsubscribe(this);
@@ -87,5 +126,13 @@ public class ClientHandler {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public String getNick() {
+        return nick;
+    }
+
+    public String getLogin() {
+        return login;
     }
 }

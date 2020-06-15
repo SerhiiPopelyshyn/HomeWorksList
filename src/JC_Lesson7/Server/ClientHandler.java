@@ -1,10 +1,10 @@
 package JC_Lesson7.Server;
 
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 
 public class ClientHandler {
     private Server server;
@@ -15,6 +15,8 @@ public class ClientHandler {
     private String nick;
     private String login;
 
+    private static final int SOCKET_TIMEOUT = 120000;
+
     public ClientHandler(Server server, Socket socket) {
         this.server = server;
         this.socket = socket;
@@ -24,10 +26,12 @@ public class ClientHandler {
 
             new Thread(() -> {
                 try {
-                    //Если в течении 5 секунд не будет сообщений по сокету, то вызовится исключение
-                    socket.setSoTimeout(50);
+                    //Если в течении SOCKET_TIMEOUT не будет сообщений по сокету то вызовится исключение
+                    socket.setSoTimeout(SOCKET_TIMEOUT);
 
-                    //цикл аутентификации
+                    boolean authok = false;
+
+                    //цикл аутентификации и регистрации
                     while (true) {
                         String str = in.readUTF();
 
@@ -42,10 +46,9 @@ public class ClientHandler {
                                     .getAuthService()
                                     .registration(token[1], token[2], token[3]);
                             if (succeed) {
-                                sendMsg("Регистрация прошла успешно");
+                                sendMsg("/reg_ok");
                             } else {
-                                sendMsg("Регистрация  не удалась. \n" +
-                                        "Возможно логин уже занят, или данные содержат пробел");
+                                sendMsg("/reg_error");
                             }
                         }
 
@@ -66,7 +69,8 @@ public class ClientHandler {
                                     sendMsg("/authok " + newNick);
                                     nick = newNick;
                                     server.subscribe(this);
-                                    System.out.println("Клиент: " + nick + " подключился"+ socket.getRemoteSocketAddress());
+                                    System.out.println("Клиент: " + nick + " подключился" + socket.getRemoteSocketAddress());
+                                    authok = true;
                                     break;
                                 } else {
                                     sendMsg("С этим логином уже прошли аутентификацию");
@@ -75,33 +79,42 @@ public class ClientHandler {
                                 sendMsg("Неверный логин / пароль");
                             }
                         }
-                    }
 
-                    //цикл работы
-                    while (true) {
-                        String str = in.readUTF();
-
-                        if (str.startsWith("/")) {
-                            if (str.equals("/end")) {
-                                sendMsg("/end");
-                                break;
-                            }
-                            if (str.startsWith("/w ")) {
-                                String[] token = str.split(" ", 3);
-
-                                if (token.length < 3) {
-                                    continue;
-                                }
-
-                                server.privateMsg(this, token[1], token[2]);
-                            }
-                        } else {
-                            server.broadcastMsg(nick, str);
+                        if (str.equals("/end")) {
+                            sendMsg("/end");
+                            break;
                         }
                     }
-                }
-                ///////
-                catch (IOException e) {
+
+                    if (authok) {
+                        //цикл работы
+                        socket.setSoTimeout(0);
+
+                        while (true) {
+                            String str = in.readUTF();
+
+                            if (str.startsWith("/")) {
+                                if (str.equals("/end")) {
+                                    sendMsg("/end");
+                                    break;
+                                }
+                                if (str.startsWith("/w ")) {
+                                    String[] token = str.split(" ", 3);
+
+                                    if (token.length < 3) {
+                                        continue;
+                                    }
+
+                                    server.privateMsg(this, token[1], token[2]);
+                                }
+                            } else {
+                                server.broadcastMsg(nick, str);
+                            }
+                        }
+                    }
+                } catch (SocketTimeoutException e) {
+                    System.out.println("Сокет отключен по таймауту");
+                } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
                     server.unsubscribe(this);
